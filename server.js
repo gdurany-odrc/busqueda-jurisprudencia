@@ -213,8 +213,7 @@ async function startServer() {
                     body: fs.createReadStream(tempPath)
                 },
                 fields: 'id',
-                supportsAllDrives: true,
-                includeItemsFromAllDrives: true
+                supportsAllDrives: true
             });
             fs.unlinkSync(tempPath);
             res.json({ success: true, fileId: driveResponse.data.id });
