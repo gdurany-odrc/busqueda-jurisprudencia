@@ -250,7 +250,9 @@ async function startServer() {
           mimeType: 'application/pdf',
           body: fs.createReadStream(tempPath)
         },
-        fields: 'id'
+        fields: 'id',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true
       });
 
       fs.unlinkSync(tempPath);
