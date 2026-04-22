@@ -3,7 +3,7 @@ import {
   Search, 
   Download, 
   CloudUpload, 
-  Settings, 
+  Folder, 
   FileText, 
   AlertCircle, 
   CheckCircle2, 
@@ -330,8 +330,9 @@ export default function App() {
         <button 
           onClick={() => setShowSettings(true)}
           className="p-2 hover:bg-[#F0F0F0] rounded-full transition-colors"
+          title="Seleccionar Carpeta Destino"
         >
-          <Settings className="w-5 h-5 text-[#4A4A4A]" />
+          <Folder className="w-5 h-5 text-[#4A4A4A]" />
         </button>
       </header>
 
@@ -770,44 +771,44 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden"
+              className="relative bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden"
             >
               <div className="px-8 py-6 border-b border-[#F0F0F0] flex justify-between items-center bg-[#F9F9F9]">
                 <div className="flex items-center gap-3">
-                  <Settings className="w-5 h-5 text-[#DA251C]" />
-                  <h2 className="font-bold text-lg">Configuración Drive</h2>
+                  <Folder className="w-5 h-5 text-[#DA251C]" />
+                  <h2 className="font-bold text-lg">Seleccionar Carpeta</h2>
                 </div>
                 <button onClick={() => setShowSettings(false)} className="p-2 hover:bg-[#E5E5E5] rounded-full transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
               
-              <div className="p-8 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold uppercase tracking-wider text-[#9E9E9E]">ID Carpeta Destino</label>
-                    <input 
-                      type="text"
-                      value={folderId}
-                      onChange={e => setFolderId(e.target.value)}
-                      className="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#DA251C]"
-                      placeholder="ID de la carpeta en Google Drive"
-                    />
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 p-4 rounded-2xl flex gap-3">
-                  <AlertCircle className="w-5 h-5 text-blue-500 shrink-0" />
-                  <p className="text-xs text-blue-700 leading-relaxed">
-                    Las credenciales de la API (Client ID, Secret, Refresh Token) se gestionan internamente en el servidor para mayor seguridad.
-                  </p>
-                </div>
-
+              <div className="p-8 space-y-4">
                 <button 
-                  onClick={() => setShowSettings(false)}
-                  className="w-full bg-[#141414] text-white font-bold py-4 rounded-2xl hover:bg-[#333] transition-colors"
+                  onClick={() => {
+                    setFolderId('1bMzh832ZtvEBCC1LaBEGm81AOxueqSfg');
+                    setShowSettings(false);
+                  }}
+                  className={`w-full font-bold py-5 rounded-2xl transition-all text-white text-lg tracking-wider ${
+                    folderId === '1bMzh832ZtvEBCC1LaBEGm81AOxueqSfg' 
+                      ? 'bg-[#E53935] ring-4 ring-red-200 shadow-lg scale-[1.02]' 
+                      : 'bg-[#FF6B6B] hover:bg-[#E53935] hover:shadow-md'
+                  }`}
                 >
-                  Guardar y Cerrar
+                  INFORMES SUNAT
+                </button>
+                <button 
+                  onClick={() => {
+                    setFolderId('1vyRfRrbImxcD5MoK3dBF_ooTC84mPNGt');
+                    setShowSettings(false);
+                  }}
+                  className={`w-full font-bold py-5 rounded-2xl transition-all text-white text-lg tracking-wider ${
+                    folderId === '1vyRfRrbImxcD5MoK3dBF_ooTC84mPNGt' 
+                      ? 'bg-[#43A047] ring-4 ring-green-200 shadow-lg scale-[1.02]' 
+                      : 'bg-[#69F0AE] hover:bg-[#43A047] hover:shadow-md'
+                  }`}
+                >
+                  RTF
                 </button>
               </div>
             </motion.div>
