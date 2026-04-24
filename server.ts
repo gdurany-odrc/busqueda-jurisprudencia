@@ -11,6 +11,57 @@ import iconv from 'iconv-lite';
 import urlencode from 'urlencode';
 import http from 'http';
 import https from 'https';
+import puppeteer from 'puppeteer';
+
+async function descargarPDFReal(pdfUrl: string): Promise<Buffer> {
+  // 4. Argumentos recomendados (imprescindibles para Docker/Servidores Linux)
+  const browser = await puppeteer.launch({ 
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+  
+  try {
+    const page = await browser.newPage();
+    // Identificarnos como navegador real
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+    // 1 y 2. Estrategia anti-Incapsula y anti-PDF Viewer
+    // En lugar de ir directo al PDF, vamos a la página principal del dominio.
+    // Esto permite a Puppeteer resolver los retos de Incapsula tranquilamente.
+    const urlObj = new URL(pdfUrl);
+    await page.goto(urlObj.origin, { waitUntil: 'networkidle2' });
+
+    // Ahora que tenemos la "cookie" sellada, forzamos el fetch del PDF desde el navegador
+    // usando un FileReader para convertir los binarios en B64 (mejor rendimiento que mandar arrays gigantes desde Browser -> Node)
+    const base64Data = await page.evaluate(async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+      
+      const blob = await response.blob();
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string); // ej: "data:application/pdf;base64,JVBER..."
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }, pdfUrl);
+    
+    // Decodificar Base64 directo a Buffer usando Node.js
+    const b64Data = base64Data.split(',')[1];
+    const buffer = Buffer.from(b64Data, 'base64');
+    
+    // 3. Validación de firma (Magic Number)
+    // El "Magic Number" de un PDF es %PDF- (25 50 44 46 2D...)
+    // Verifica si los primeros 4 bytes corresponden.
+    if (buffer.length < 4 || buffer[0] !== 0x25 || buffer[1] !== 0x50 || buffer[2] !== 0x44 || buffer[3] !== 0x46) {
+      throw new Error('La descarga falló: El contenido no tiene firma PDF (posible bloqueo mantenido por Incapsula).');
+    }
+    
+    return buffer;
+  } finally {
+    await browser.close();
+  }
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -231,9 +282,8 @@ async function startServer() {
 
       const drive = google.drive({ version: 'v3', auth: oauth2Client });
 
-      // Download PDF
-      const pdfResponse = await axios.get(pdfUrl, { responseType: 'arraybuffer' });
-      const buffer = Buffer.from(pdfResponse.data);
+      // Download PDF usando Puppeteer
+      const buffer = await descargarPDFReal(pdfUrl);
 
       // Upload to Google Drive
       const tempPath = path.join(__dirname, `temp_${Date.now()}.pdf`);
