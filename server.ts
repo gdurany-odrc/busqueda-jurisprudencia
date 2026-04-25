@@ -13,19 +13,44 @@ import http from 'http';
 import https from 'https';
 import puppeteer from 'puppeteer';
 
+// Variables globales para Arquitectura de Navegador Reciclado
+let globalBrowser: import('puppeteer').Browser | null = null;
+let isLaunchingBrowser = false;
+
+async function getGlobalBrowser() {
+  if (globalBrowser && globalBrowser.isConnected()) {
+    return globalBrowser;
+  }
+  if (isLaunchingBrowser) {
+    while (isLaunchingBrowser) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    return globalBrowser;
+  }
+  isLaunchingBrowser = true;
+  try {
+    globalBrowser = await puppeteer.launch({ 
+      headless: true,
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage', // Vital contra colapsos de memoria temporal (OOM) en Railway
+        '--disable-web-security', 
+        '--ignore-certificate-errors'
+      ]
+    });
+  } finally {
+    isLaunchingBrowser = false;
+  }
+  return globalBrowser;
+}
+
 async function descargarPDFReal(pdfUrl: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({ 
-    headless: true,
-    args: [
-      '--no-sandbox', 
-      '--disable-setuid-sandbox', 
-      '--disable-web-security', 
-      '--ignore-certificate-errors' // Reemplazo validado de ignoreHTTPSErrors
-    ]
-  });
+  const browser = await getGlobalBrowser();
+  let page: import('puppeteer').Page | null = null;
   
   try {
-    const page = await browser.newPage();
+    page = await browser!.newPage();
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
     // Evitar restricciones de Content-Security-Policy de la página que puedan bloquear nuestro fetch()
@@ -67,7 +92,10 @@ async function descargarPDFReal(pdfUrl: string): Promise<Buffer> {
     
     return buffer;
   } finally {
-    await browser.close();
+    // Muy importante: ¡Solo cerramos la pestaña, mantenemos vivo el navegador!
+    if (page) {
+      await page.close().catch(() => {});
+    }
   }
 }
 
