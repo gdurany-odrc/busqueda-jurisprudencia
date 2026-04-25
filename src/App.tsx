@@ -30,7 +30,10 @@ interface SearchResult {
 }
 
 export default function App() {
-  const [searchMode, setSearchMode] = useState<'avanzada' | 'rtf'>('avanzada');
+  const [searchMode, setSearchMode] = useState<'avanzada' | 'rtf' | 'sunat'>('avanzada');
+  const [sunatParams, setSunatParams] = useState({
+    anio: new Date().getFullYear().toString()
+  });
   const [searchParams, setSearchParams] = useState({
     todas: '',
     exacta: '',
@@ -116,6 +119,29 @@ export default function App() {
       }
       
       const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      
+      setResults(data.results.map((r: any) => ({ ...r, status: 'idle' })));
+      setTotalResults(data.totalResults);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSunatSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setResults([]);
+    setTotalResults(0);
+    setCurrentPage(1);
+    
+    try {
+      const response = await fetch(`/api/sunat-search?anio=${sunatParams.anio}`);
+      const data = await response.json();
+      
       if (data.error) throw new Error(data.error);
       
       setResults(data.results.map((r: any) => ({ ...r, status: 'idle' })));
@@ -600,6 +626,58 @@ export default function App() {
                         >
                           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
                           Buscar
+                        </button>
+                      </form>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* SUNAT Search */}
+            <div className="bg-white rounded-2xl shadow-sm border border-[#E5E5E5] overflow-hidden">
+              <button 
+                onClick={() => setSearchMode('sunat')}
+                className={`w-full px-6 py-4 flex items-center justify-between transition-colors ${
+                  searchMode === 'sunat' ? 'bg-[#DA251C] text-white' : 'hover:bg-[#F9F9F9]'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <FileText className={`w-5 h-5 ${searchMode === 'sunat' ? 'text-white' : 'text-[#DA251C]'}`} />
+                  <span className="font-bold text-sm tracking-wide">BÚSQUEDA SUNAT</span>
+                </div>
+                {searchMode === 'sunat' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              
+              <AnimatePresence>
+                {searchMode === 'sunat' && (
+                  <motion.div 
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-6 space-y-4 border-t border-[#F0F0F0]">
+                      <form onSubmit={handleSunatSearch} className="space-y-4">
+                        <div className="space-y-1">
+                          <label className="text-[11px] font-bold uppercase tracking-wider text-[#9E9E9E]">Año a Consultar</label>
+                          <select 
+                            value={sunatParams.anio}
+                            onChange={e => setSunatParams({...sunatParams, anio: e.target.value})}
+                            className="w-full bg-[#F9F9F9] border border-[#E5E5E5] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#DA251C]"
+                          >
+                            {Array.from({ length: new Date().getFullYear() - 1996 + 1 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                              <option key={year} value={year}>{year}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <button 
+                          type="submit"
+                          disabled={loading}
+                          className="w-full bg-[#DA251C] text-white font-bold py-3 rounded-xl hover:bg-[#B91C1C] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                        >
+                          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
+                          Buscar Documentos
                         </button>
                       </form>
                     </div>

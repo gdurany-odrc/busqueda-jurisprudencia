@@ -46,6 +46,15 @@ async function getGlobalBrowser() {
 }
 
 async function descargarPDFReal(pdfUrl: string): Promise<Buffer> {
+  // Si es de SUNAT, descargar nativamente sin abrir Puppeteer (es ultrarrápido y no hay Incapsula)
+  if (pdfUrl.includes('sunat.gob.pe')) {
+    const response = await axios.get(pdfUrl, {
+      responseType: 'arraybuffer',
+      httpsAgent: new https.Agent({ rejectUnauthorized: false })
+    });
+    return Buffer.from(response.data);
+  }
+
   const browser = await getGlobalBrowser();
   let page: import('puppeteer').Page | null = null;
   
@@ -217,6 +226,66 @@ async function startServer() {
         // Wait a bit before retrying
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
+    }
+  });
+
+  app.get('/api/sunat-search', async (req, res) => {
+    try {
+      const { anio } = req.query;
+      if (!anio) {
+        return res.status(400).json({ error: 'Falta proveer el parámetro año.' });
+      }
+
+      const url = `https://www.sunat.gob.pe/legislacion/oficios/${anio}/indcor.htm`;
+      
+      const response = await axios.get(url, {
+        responseType: 'arraybuffer',
+        httpsAgent: new https.Agent({ rejectUnauthorized: false })
+      });
+      
+      // El portal de SUNAT usa UTF-8 en años recientes, pero ISO-8859-1 en los antiguos.
+      // Leemos como UTF-8 por defecto. Si aparecen reliquias inválidas '', recurrimos a latin1.
+      let html = Buffer.from(response.data).toString('utf8');
+      if (html.includes('')) {
+        html = iconv.decode(Buffer.from(response.data), 'latin1');
+      }
+      
+      const $ = cheerio.load(html);
+      
+      const results: any[] = [];
+      const baseUrl = `https://www.sunat.gob.pe/legislacion/oficios/${anio}/`;
+      
+      $('a').each((i, el) => {
+        const href = $(el).attr('href');
+        if (href && href.toLowerCase().endsWith('.pdf')) {
+          let text = $(el).text().trim();
+          
+          // Formateo para quitar saltos de línea internos
+          text = text.replace(/\s+/g, ' ');
+
+          // Restaurador mágico de caracteres por si la web combinó doble codificación (Mojibake)
+          try {
+            if (text.includes('Â°') || text.includes('Ã')) {
+              text = decodeURIComponent(escape(text));
+            }
+          } catch (e) {}
+
+          if (!text) {
+            text = href.split('/').pop() || `Documento_Sin_Nombre_${i}`;
+          }
+
+          results.push({
+            id: text,
+            path: `SUNAT/${anio}/${text}.pdf`.replace(/(\/|\\|:|\*|\?|"|<|>|\|)/g, '_'), // Limpiamos para Windows path
+            url: new URL(href, baseUrl).href
+          });
+        }
+      });
+      
+      return res.json({ totalResults: results.length, results });
+    } catch (error: any) {
+      console.error('Error al explorar resoluciones SUNAT:', error.message);
+      return res.status(500).json({ error: 'Error al conectar con la web de SUNAT. Puede que el sitio esté temporalmente indisponible o el año no tenga documentos.' });
     }
   });
 
