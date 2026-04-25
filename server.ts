@@ -14,33 +14,41 @@ import https from 'https';
 import puppeteer from 'puppeteer';
 
 async function descargarPDFReal(pdfUrl: string): Promise<Buffer> {
-  // 4. Argumentos recomendados (imprescindibles para Docker/Servidores Linux)
   const browser = await puppeteer.launch({ 
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: [
+      '--no-sandbox', 
+      '--disable-setuid-sandbox', 
+      '--disable-web-security', 
+      '--ignore-certificate-errors' // Reemplazo validado de ignoreHTTPSErrors
+    ]
   });
   
   try {
     const page = await browser.newPage();
-    // Identificarnos como navegador real
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
-    // 1 y 2. Estrategia anti-Incapsula y anti-PDF Viewer
-    // En lugar de ir directo al PDF, vamos a la página principal del dominio.
-    // Esto permite a Puppeteer resolver los retos de Incapsula tranquilamente.
+    // Evitar restricciones de Content-Security-Policy de la página que puedan bloquear nuestro fetch()
+    await page.setBypassCSP(true);
+
     const urlObj = new URL(pdfUrl);
     await page.goto(urlObj.origin, { waitUntil: 'networkidle2' });
 
-    // Ahora que tenemos la "cookie" sellada, forzamos el fetch del PDF desde el navegador
-    // usando un FileReader para convertir los binarios en B64 (mejor rendimiento que mandar arrays gigantes desde Browser -> Node)
     const base64Data = await page.evaluate(async (url) => {
+      // Corrección Crítica: Mixed Content
+      // Si el origin cargó en HTTPS pero la pdfUrl es HTTP, Chromium bloqueará
+      // el fetch() instantáneamente arrojando "TypeError: Failed to fetch".
+      if (window.location.protocol === 'https:' && url.startsWith('http:')) {
+        url = url.replace('http:', 'https:');
+      }
+
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
       
       const blob = await response.blob();
       return new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string); // ej: "data:application/pdf;base64,JVBER..."
+        reader.onloadend = () => resolve(reader.result as string);
         reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
