@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, 
-  Download, 
+  Eye, 
   CloudUpload, 
   Folder, 
   FileText, 
@@ -695,7 +695,7 @@ export default function App() {
                                 className="p-2 hover:bg-[#F0F0F0] rounded-lg transition-colors text-[#4A4A4A]"
                                 title="Ver PDF"
                               >
-                                <Download className="w-4 h-4" />
+                                <Eye className="w-4 h-4" />
                               </a>
                               <button 
                                 onClick={() => handleUpload(result)}
