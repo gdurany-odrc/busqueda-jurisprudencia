@@ -375,7 +375,7 @@ export default function App() {
               >
                 <div className="flex items-center gap-3">
                   <Filter className="w-5 h-5" />
-                  <span className="font-bold text-sm uppercase tracking-wider">Búsqueda Avanzada</span>
+                  <span className="font-bold text-sm uppercase tracking-wider">RTF Búsqueda Avanzada</span>
                 </div>
                 {searchMode === 'avanzada' ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
